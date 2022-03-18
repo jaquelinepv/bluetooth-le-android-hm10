@@ -11,9 +11,22 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.icu.text.SimpleDateFormat;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.Thread;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,11 +69,9 @@ public class BleConnectionService {
                         intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, StaticResources.CONNECTION_STATE_CONNECTED);
                         DiscoverServicesAfterDelay(gatt);
 
-                    }
-                    else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                         intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, StaticResources.CONNECTION_STATE_DISCONNECTED);
-                    }
-                    else if (newState == BluetoothProfile.STATE_CONNECTING) {
+                    } else if (newState == BluetoothProfile.STATE_CONNECTING) {
                         intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, StaticResources.CONNECTION_STATE_CONNECTING);
                     }
                     m_context.sendBroadcast(intent);
@@ -74,19 +85,16 @@ public class BleConnectionService {
                     Log.i("onServicesDiscovered",
                             "Status = " + Integer.toString(status)
                     );
-                    if (status == BluetoothGatt.GATT_SUCCESS)
-                    {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
                         m_gattServices = gatt.getServices();
                         m_characteristicTX = FindCharacteristic(StaticResources.HM10_SERIAL_DATA, m_gattServices);
                         String foundSuccess = StaticResources.SERVICES_DISCOVERY_CHARACTERISTIC_FAILURE;
-                        if (m_characteristicTX != null)
-                        {
+                        if (m_characteristicTX != null) {
                             foundSuccess = StaticResources.SERVICES_DISCOVERY_CHARACTERISTIC_SUCCESS;
                         }
-                            intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED,
-                                    foundSuccess);
-                    }
-                    else // Many reasons it could fail to find services
+                        intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED,
+                                foundSuccess);
+                    } else // Many reasons it could fail to find services
                     {
                         intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED,
                                 StaticResources.SERVICES_DISCOVERY_GENERAL_FAILURE);
@@ -94,18 +102,52 @@ public class BleConnectionService {
                     m_context.sendBroadcast(intent);
                 }
 
+                //recibir los datos
+                @RequiresApi(api = Build.VERSION_CODES.N)
                 @Override
                 public void onCharacteristicChanged(BluetoothGatt gatt,
                                                     BluetoothGattCharacteristic characteristic) {
                     byte[] rawData = characteristic.getValue();
+                    try {
+                        Thread.sleep(60000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     String txData = new String(rawData).trim(); // toString does not work, but new String()
                     Intent intent = new Intent(StaticResources.BROADCAST_NAME_TX_CHARATERISTIC_CHANGED);
                     intent.putExtra(StaticResources.EXTRAS_TX_DATA, txData);
                     m_context.sendBroadcast(intent);
+                    Date date = new Date();
+                    SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd");
+                    String d = f.format(date);
+                    SimpleDateFormat h = new SimpleDateFormat("hh:mm aa");
+                    String hour = h.format(date);
                     Log.i("onCharacteristicChanged",
                             "TxData = " + txData + ";");
-                }
+                    if (rawData != null) {
+                        JSONObject js = null;
+                        try {
+                            js = new JSONObject(txData );
+                            js.put("F", d);
+                            js.put("H", hour);
+                            System.out.println(js);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                        DataMonitoring dm = null;
+                        try {
+                            dm = new DataMonitoring(js, m_context);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            dm.sendData();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
 
+                    }
+                }
             };
 
     private BluetoothGattCharacteristic FindCharacteristic(String uuidString, List<BluetoothGattService> possibleServices) {
@@ -124,7 +166,7 @@ public class BleConnectionService {
     public void connect(String macAddress)
     {
         BluetoothDevice device = m_bleAdapter.getRemoteDevice(macAddress);
-        m_gattServer = device.connectGatt(m_context,false, m_gattCallback);
+        m_gattServer = device.connectGatt(m_context,true, m_gattCallback);
     }
 
 

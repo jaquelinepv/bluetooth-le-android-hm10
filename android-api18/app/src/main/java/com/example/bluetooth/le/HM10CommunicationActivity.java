@@ -1,8 +1,15 @@
 package com.example.bluetooth.le;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Environment;
+import android.support.annotation.RequiresApi;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -30,8 +37,11 @@ public class HM10CommunicationActivity extends AppCompatActivity {
     private BluetoothGattCharacteristic characteristicRX;
     private final String LIST_NAME = "NAME";
     private final String LIST_UUID = "UUID";
+    private int SDK_INT;
+    int REQUEST_CODE = 200;
 
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -61,6 +71,7 @@ public class HM10CommunicationActivity extends AppCompatActivity {
         filterMaster.addAction(StaticResources.BROADCAST_NAME_SERVICES_DISCOVERED);
         filterMaster.addAction(StaticResources.BROADCAST_NAME_TX_CHARATERISTIC_CHANGED);
         registerReceiver(m_bleBroadcastReceiver, filterMaster);
+        requestWriting();
 
     }
 
@@ -111,10 +122,17 @@ public class HM10CommunicationActivity extends AppCompatActivity {
     };
 
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void requestWriting() {
 
+        int rw = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        int rr = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
 
-
-
-
+        if (rw == PackageManager.PERMISSION_GRANTED && rr == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "write permission", Toast.LENGTH_SHORT).show();
+        } else {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_CODE);
+        }
+    }
 
 }
