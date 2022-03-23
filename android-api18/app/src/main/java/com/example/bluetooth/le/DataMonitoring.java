@@ -9,6 +9,18 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
+
+import com.android.volley.Cache;
+import com.android.volley.Network;
+//import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.BasicNetwork;
+import com.android.volley.toolbox.DiskBasedCache;
+import com.android.volley.toolbox.HurlStack;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
 import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -21,26 +33,36 @@ import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import io.socket.client.IO;
 import io.socket.client.Socket;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class DataMonitoring extends AppCompatActivity {
     JSONObject data;
-    private Socket mSocket;
+
     private Context context;
-    //private AccessibilityService m_context;
+    String url = "https://iotacuicola.herokuapp.com/hola";
 
-    {
-        try {
-            mSocket = IO.socket("https://iotacuicola.herokuapp.com");
-            //mSocket.connect();
+    RequestQueue mRequestQueue;
 
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
-    }
+
 
     public DataMonitoring(JSONObject data, Context context) throws IOException {
         this.data = data;
         this.context = context;
+        // Instantiate the RequestQueue with the cache and network.
+        //Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024); // 1MB cap
+
+        // Set up the network to use HttpURLConnection as the HTTP client.
+       //Network network = new BasicNetwork(new HurlStack());
+
+        // Instantiate the RequestQueue with the cache and network.
+        //mRequestQueue = new RequestQueue(cache, network);
+        mRequestQueue = Volley.newRequestQueue(context);
 
     }
 
@@ -48,8 +70,9 @@ public class DataMonitoring extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mSocket.connect();
-        System.out.println("conectado!!");
+        //mSocket.connect();
+        //System.out.println("conectado!!");
+
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -89,7 +112,7 @@ public class DataMonitoring extends AppCompatActivity {
             }
 
         }else {
-            mSocket.connect();
+            //mSocket.connect();
             System.out.println("conectado!!");
 
             System.out.println(file.toString());
@@ -98,7 +121,44 @@ public class DataMonitoring extends AppCompatActivity {
                 file.delete();
                 System.out.println("Evento enviado");
             }
-            mSocket.emit("my event", d);
+            System.out.println("Estoy por acá!!");
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            RequestBody body = RequestBody.create(JSON, d);
+            OkHttpClient client = new OkHttpClient();
+            Request request = new Request.Builder().url(url).post(body).build();
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    System.out.println("fallo!!");
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    System.out.println("Funciono! "+response);
+                }
+            });
+/*
+
+
+            // Start the queue
+            mRequestQueue.start();
+
+
+            StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            System.out.println(response);
+                        }
+                    },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            // Handle error
+                        }
+                    });
+            mRequestQueue.add(stringRequest);*/
+            //mSocket.emit("my event", d);
         }
     }
 
@@ -114,7 +174,7 @@ public class DataMonitoring extends AppCompatActivity {
 
             f = line.getBytes(UTF_8);
             System.out.println(f);
-            mSocket.emit("my event", f);
+            //mSocket.emit("my event", f);
 
         }
 

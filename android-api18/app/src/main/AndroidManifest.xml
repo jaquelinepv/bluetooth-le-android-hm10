@@ -26,6 +26,7 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/AppTheme">
+        android:name=".API"
         android:requestLegacyExternalStorage="true"
 
          <activity android:name="com.example.bluetooth.le.HM10CommunicationActivity"

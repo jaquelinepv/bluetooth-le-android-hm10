@@ -109,7 +109,7 @@ public class BleConnectionService {
                                                     BluetoothGattCharacteristic characteristic) {
                     byte[] rawData = characteristic.getValue();
                     try {
-                        Thread.sleep(60000);
+                        Thread.sleep(5000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
