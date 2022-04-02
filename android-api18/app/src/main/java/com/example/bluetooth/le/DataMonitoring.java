@@ -1,6 +1,5 @@
 package com.example.bluetooth.le;
 
-import static java.nio.charset.StandardCharsets.*;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.net.ConnectivityManager;
@@ -10,15 +9,8 @@ import android.os.Bundle;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 
-import com.android.volley.Cache;
-import com.android.volley.Network;
 //import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.BasicNetwork;
-import com.android.volley.toolbox.DiskBasedCache;
-import com.android.volley.toolbox.HurlStack;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 import org.json.JSONObject;
@@ -30,9 +22,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
-import io.socket.client.IO;
-import io.socket.client.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -43,25 +35,14 @@ import okhttp3.Response;
 
 public class DataMonitoring extends AppCompatActivity {
     JSONObject data;
-
     private Context context;
     String url = "https://iotacuicola.herokuapp.com/hola";
 
     RequestQueue mRequestQueue;
 
-
-
     public DataMonitoring(JSONObject data, Context context) throws IOException {
         this.data = data;
         this.context = context;
-        // Instantiate the RequestQueue with the cache and network.
-        //Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024); // 1MB cap
-
-        // Set up the network to use HttpURLConnection as the HTTP client.
-       //Network network = new BasicNetwork(new HurlStack());
-
-        // Instantiate the RequestQueue with the cache and network.
-        //mRequestQueue = new RequestQueue(cache, network);
         mRequestQueue = Volley.newRequestQueue(context);
 
     }
@@ -79,6 +60,7 @@ public class DataMonitoring extends AppCompatActivity {
     public void sendData() throws IOException {
         //Arreglo de bytes para almacenar los datos y enviarlos directamente cuando si hay internet
         byte[] d = new byte[0];
+        ArrayList<String> f = new ArrayList<>();
         //Arreglo de bytes para almacenar los datos del txt y enviarlos cuando regresa el internet
         ContextWrapper c = new ContextWrapper(context);
         String directory = c.getFilesDir().getPath();
@@ -114,57 +96,28 @@ public class DataMonitoring extends AppCompatActivity {
         }else {
             //mSocket.connect();
             System.out.println("conectado!!");
-
-            System.out.println(file.toString());
+            //System.out.println(file.toString());
             if(file.exists()){
-                recoverData(file);
+                f = recoverData(file);
+                byte[] df = new byte[0];
+                //forEach
+                for (String elemento: f){
+                    df = elemento.getBytes(StandardCharsets.UTF_8);
+                    postCommunication(df);
+                }
                 file.delete();
                 System.out.println("Evento enviado");
+                postCommunication(d);
             }
-            System.out.println("Estoy por acá!!");
-            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-            RequestBody body = RequestBody.create(JSON, d);
-            OkHttpClient client = new OkHttpClient();
-            Request request = new Request.Builder().url(url).post(body).build();
-            client.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    System.out.println("fallo!!");
-                }
 
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    System.out.println("Funciono! "+response);
-                }
-            });
-/*
-
-
-            // Start the queue
-            mRequestQueue.start();
-
-
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            System.out.println(response);
-                        }
-                    },
-                    new Response.ErrorListener() {
-                        @Override
-                        public void onErrorResponse(VolleyError error) {
-                            // Handle error
-                        }
-                    });
-            mRequestQueue.add(stringRequest);*/
-            //mSocket.emit("my event", d);
         }
+        postCommunication(d);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private void recoverData(File file) throws IOException {
-        byte[] f;
+    private ArrayList<String> recoverData(File file) throws IOException {
+        ArrayList<String> f = new ArrayList<>();
+        //byte[] f;
         FileInputStream fis = new FileInputStream(file);
         InputStreamReader inputStreamReader = new InputStreamReader(fis);
         BufferedReader bf = new BufferedReader(inputStreamReader);
@@ -172,11 +125,12 @@ public class DataMonitoring extends AppCompatActivity {
 
         while((line = bf.readLine())!=null) {
 
-            f = line.getBytes(UTF_8);
+            f.add(line);
             System.out.println(f);
             //mSocket.emit("my event", f);
 
         }
+        return f;
 
     }
 
@@ -203,5 +157,24 @@ public class DataMonitoring extends AppCompatActivity {
                 ex.printStackTrace();
             }
         }
+    }
+    public void postCommunication(byte[] d){
+        System.out.println("Estoy por acá!!");
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(JSON, d);
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder().url(url).post(body).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                System.out.println("fallo!!");
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                System.out.println("Funciono! "+response);
+            }
+        });
+
     }
 }
