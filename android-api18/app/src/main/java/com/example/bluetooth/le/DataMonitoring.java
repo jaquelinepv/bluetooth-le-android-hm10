@@ -13,6 +13,8 @@ import android.support.v7.app.AppCompatActivity;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -58,19 +60,14 @@ public class DataMonitoring extends AppCompatActivity {
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void sendData() throws IOException {
-        //Arreglo de bytes para almacenar los datos y enviarlos directamente cuando si hay internet
-        byte[] d = new byte[0];
-        ArrayList<String> f = new ArrayList<>();
-        //Arreglo de bytes para almacenar los datos del txt y enviarlos cuando regresa el internet
+        //Arreglo de bytes para almacenar los datos de forma independiente
+        //Arreglo de bytes para almacenar los datos o el conjunto de datos del txt y enviarlos cuando regresa el internet
+        //ArrayList<byte[]> b = new ArrayList<>();
+        JSONArray jsArray = new JSONArray();
         ContextWrapper c = new ContextWrapper(context);
         String directory = c.getFilesDir().getPath();
-        File file = new File(directory, "monitoreo.txt");
-        try {
-            //Convertir los Json a bytes
-            d = this.data.toString().getBytes("utf-8");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
+        File file = new File(directory, "monitoreo.json");
+
         //Verificar conexión
         // Si hay conexión a Internet en este momento se verifica si en txt existe, si es así, se envían, si no, solo se envían los que llegan del BL.
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -96,41 +93,53 @@ public class DataMonitoring extends AppCompatActivity {
         }else {
             //mSocket.connect();
             System.out.println("conectado!!");
-            //System.out.println(file.toString());
+            System.out.println(file.toString());
+            //ArrayList<String> f = new ArrayList<>();
+
             if(file.exists()){
-                f = recoverData(file);
-                byte[] df = new byte[0];
-                //forEach
-                for (String elemento: f){
-                    df = elemento.getBytes(StandardCharsets.UTF_8);
-                    postCommunication(df);
-                }
+                jsArray = recoverData(file);
+                jsArray.put(this.data);
+                postCommunication(jsArray);
                 file.delete();
                 System.out.println("Evento enviado");
-                postCommunication(d);
+
+                }else{
+                jsArray.put(this.data);
+                System.out.println("arreglo de datos:" + jsArray);
+                postCommunication(jsArray);
+                }
+
             }
 
+
         }
-        postCommunication(d);
-    }
+
+
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private ArrayList<String> recoverData(File file) throws IOException {
-        ArrayList<String> f = new ArrayList<>();
+    private JSONArray recoverData(File file) throws IOException {
+        //ArrayList<String> f = new ArrayList<>();
+        JSONArray js = new JSONArray();
         //byte[] f;
         FileInputStream fis = new FileInputStream(file);
         InputStreamReader inputStreamReader = new InputStreamReader(fis);
         BufferedReader bf = new BufferedReader(inputStreamReader);
         String line;
+        JSONObject jsonLine = new JSONObject();
 
         while((line = bf.readLine())!=null) {
+            try {
+                jsonLine = new JSONObject(line);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            js.put(jsonLine);
 
-            f.add(line);
-            System.out.println(f);
             //mSocket.emit("my event", f);
 
         }
-        return f;
+        System.out.println("Arraylist de recover data" + js);
+        return js;
 
     }
 
@@ -158,10 +167,13 @@ public class DataMonitoring extends AppCompatActivity {
             }
         }
     }
-    public void postCommunication(byte[] d){
+    public void postCommunication(JSONArray d){
+        //byte[] array = new byte[d.size()];
+        //array = d.toArray(array);
+
         System.out.println("Estoy por acá!!");
         MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-        RequestBody body = RequestBody.create(JSON, d);
+        RequestBody body = RequestBody.create(JSON, String.valueOf(d));
         OkHttpClient client = new OkHttpClient();
         Request request = new Request.Builder().url(url).post(body).build();
         client.newCall(request).enqueue(new Callback() {
