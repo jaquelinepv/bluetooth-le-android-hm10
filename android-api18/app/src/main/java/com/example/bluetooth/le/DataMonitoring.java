@@ -24,6 +24,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
@@ -36,14 +39,15 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class DataMonitoring extends AppCompatActivity {
-    JSONObject data;
+    //JSONObject data;
     private Context context;
+    //String url = "http://192.168.28.73:8000/hola";
     String url = "https://iotacuicola.herokuapp.com/hola";
 
     RequestQueue mRequestQueue;
 
-    public DataMonitoring(JSONObject data, Context context) throws IOException {
-        this.data = data;
+    public DataMonitoring(Context context) throws IOException {
+        //this.data = data;
         this.context = context;
         mRequestQueue = Volley.newRequestQueue(context);
 
@@ -59,10 +63,8 @@ public class DataMonitoring extends AppCompatActivity {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    public void sendData() throws IOException {
-        //Arreglo de bytes para almacenar los datos de forma independiente
-        //Arreglo de bytes para almacenar los datos o el conjunto de datos del txt y enviarlos cuando regresa el internet
-        //ArrayList<byte[]> b = new ArrayList<>();
+    public void sendData(JSONObject data) throws IOException {
+
         JSONArray jsArray = new JSONArray();
         ContextWrapper c = new ContextWrapper(context);
         String directory = c.getFilesDir().getPath();
@@ -70,7 +72,7 @@ public class DataMonitoring extends AppCompatActivity {
 
         //Verificar conexión
         // Si hay conexión a Internet en este momento se verifica si en txt existe, si es así, se envían, si no, solo se envían los que llegan del BL.
-        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        /*ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo wifi = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
         NetworkInfo mb = cm.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
         if(!wifi.isConnected() && !mb.isConnected()) {
@@ -81,39 +83,34 @@ public class DataMonitoring extends AppCompatActivity {
             if(!file.exists()){
                 try{
                     file.createNewFile();
-                    storeData(file);
+                    storeData(file, data);
 
                 }catch (IOException e) {
                     e.printStackTrace();
                 }
             }else{
-                storeData(file);
+                storeData(file, data);
             }
 
         }else {
             //mSocket.connect();
             System.out.println("conectado!!");
             System.out.println(file.toString());
-            //ArrayList<String> f = new ArrayList<>();
+            //ArrayList<String> f = new ArrayList<>();*/
 
-            if(file.exists()){
-                jsArray = recoverData(file);
-                jsArray.put(this.data);
-                postCommunication(jsArray);
-                file.delete();
-                System.out.println("Evento enviado");
+        if(file.exists()){
+            jsArray = recoverData(file);
+            jsArray.put(data);
+            postCommunication(jsArray);
+            System.out.println("Evento enviado");
 
-                }else{
-                jsArray.put(this.data);
-                System.out.println("arreglo de datos:" + jsArray);
-                postCommunication(jsArray);
-                }
-
-            }
-
-
+        }else{
+            jsArray.put(data);
+            System.out.println("arreglo de datos:" + jsArray);
+            postCommunication(jsArray);
         }
 
+    }
 
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -143,7 +140,7 @@ public class DataMonitoring extends AppCompatActivity {
 
     }
 
-    public void storeData(File file) {
+    public void storeData(File file, JSONObject data) {
 
         BufferedWriter bw = null;
         FileWriter fw = null;
@@ -151,7 +148,7 @@ public class DataMonitoring extends AppCompatActivity {
         try {
             fw = new FileWriter(file, true);
             bw = new BufferedWriter(fw);
-            bw.write(String.valueOf(this.data));
+            bw.write(String.valueOf(data));
             bw.write("\n");
             System.out.println("información agregada!");
         } catch (IOException e) {
@@ -170,7 +167,13 @@ public class DataMonitoring extends AppCompatActivity {
     public void postCommunication(JSONArray d){
         //byte[] array = new byte[d.size()];
         //array = d.toArray(array);
-
+        JSONObject value = new JSONObject();
+        try {
+            value = d.getJSONObject(d.length()-1);
+        } catch (JSONException e){
+            e.printStackTrace();
+        }
+        final JSONObject data = value;
         System.out.println("Estoy por acá!!");
         MediaType JSON = MediaType.parse("application/json; charset=utf-8");
         RequestBody body = RequestBody.create(JSON, String.valueOf(d));
@@ -179,12 +182,39 @@ public class DataMonitoring extends AppCompatActivity {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                System.out.println("fallo!!");
+                System.out.println("fallo!! "+e);
+                ContextWrapper c = new ContextWrapper(context);
+                String directory = c.getFilesDir().getPath();
+                File file = new File(directory, "monitoreo.json");
+                if (e instanceof UnknownHostException || e instanceof  ConnectException){
+                    if(!file.exists()){
+                        try{
+                            file.createNewFile();
+                            storeData(file, data);
+
+                        }catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+                    }else{
+                        storeData(file, data);
+                    }
+                }
+                else if (e instanceof SocketTimeoutException){
+                    if(file.exists()) {
+                        file.delete();
+                    }
+                }
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 System.out.println("Funciono! "+response);
+                ContextWrapper c = new ContextWrapper(context);
+                String directory = c.getFilesDir().getPath();
+                File file = new File(directory, "monitoreo.json");
+                if(file.exists()) {
+                    file.delete();
+                }
             }
         });
 

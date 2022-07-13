@@ -109,7 +109,7 @@ public class BleConnectionService {
                                                     BluetoothGattCharacteristic characteristic) {
                     byte[] rawData = characteristic.getValue();
                     try {
-                        Thread.sleep(60000);
+                        Thread.sleep(300000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -120,7 +120,7 @@ public class BleConnectionService {
                     Date date = new Date();
                     SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd");
                     String d = f.format(date);
-                    SimpleDateFormat h = new SimpleDateFormat("hh:mm aa");
+                    SimpleDateFormat h = new SimpleDateFormat("kk:mm:ss");
                     String hour = h.format(date);
                     Log.i("onCharacteristicChanged",
                             "TxData = " + txData + ";");
@@ -136,12 +136,12 @@ public class BleConnectionService {
                         }
                         DataMonitoring dm = null;
                         try {
-                            dm = new DataMonitoring(js, m_context);
+                            dm = new DataMonitoring(m_context);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
                         try {
-                            dm.sendData();
+                            dm.sendData(js);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
